@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alfitech App Download</title>
+    
+
+<script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    
+
+<script type="module">
+        // Import modul Firebase yang diperlukan (HANYA DIGUNAKAN UNTUK ANALITIK & FIREBASE INI ADALAH BACKUP "F-DROP")
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // Kami tetap menggunakan getFirestore untuk koleksi Analitik.
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, increment, collection, setLogLevel, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Expose Firebase objects globally for use in the main script block
+        window.Firebase = {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, 
+            getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, 
+            serverTimestamp, increment, collection, setLogLevel, query
+        };
+    </script>
+
+    <style>
+        /* Variabel Warna Kustom (Dark Mode Permanen untuk UI) */
+        :root {
+            --primary-bg: #0A0F1D; 
+            --secondary-bg: #151A2C; 
+            --accent-blue: #00BCD4; 
+            --text-light: #E0E7FF; 
+            --text-muted: #9CA3AF; 
+            --card-border: #1F2937;
+            --shadow-color: rgba(0, 0, 0, 0.25);
+            /* Perkiraan tinggi header tetap */
+            --header-height: 8rem; /* ~128px */
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            color: var(--text-light);
+            transition: background-color 0.3s, color 0.3s;
+            padding-top: var(--header-height); 
+            padding-bottom: 5rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Gaya Komponen */
+        .card-style {
+            background-color: var(--secondary-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-light);
+            box-shadow: 0 4px 10px var(--shadow-color);
+        }
+
+        /* --- SKELETON LOADER ANIMATION --- */
+        @keyframes pulse {
+          0% { opacity: 0.8; }
+          50% { opacity: 0.4; }
+          100% { opacity: 0.8; }
+        }
+        .skeleton-pulse {
+          animation: pulse 1.5s infinite ease-in-out;
+        }
+        /* --- END SKELETON LOADER --- */
+
+        /* Logo Animasi */
+        @keyframes logo-pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+            50% { transform: scale(1.05) rotate(5deg); opacity: 0.85; }
+        }
+        .logo-a {
+            animation: logo-pulse 3s infinite ease-in-out;
+            will-change: transform, opacity;
+        }
+        .logo-a-color {
+            color: var(--accent-blue); 
+            border-color: var(--accent-blue); 
+            box-shadow: 0 0 15px var(--accent-blue);
+        }
+
+        /* Header fixed di atas */
+        .fixed-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            background-color: var(--primary-bg); 
+            backdrop-filter: blur(5px);
+            border-bottom: 1px solid var(--card-border);
+            box-shadow: 0 4px 12px var(--shadow-color); 
+            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+            height: var(--header-height); /* Tinggi tetap */
+        }
+        
+        /* Area Animasi yang Ikut Digulir */
+        #landing-area {
+            position: relative;
+            width: 100%;
+            /* Tinggi adalah sisa viewport dikurangi tinggi fixed header */
+            height: calc(100vh - var(--header-height)); 
+            overflow: hidden; 
+        }
+        
+        /* Kanvas 3D mengisi landing-area */
+        .bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -10; 
+        }
+
+        /* Modal Style */
+        .modal-content {
+            background-color: var(--secondary-bg);
+            color: var(--text-light);
+            box-shadow: 0 0 20px var(--shadow-color);
+        }
+        
+        /* Input Field Style */
+        .input-style {
+            background-color: var(--primary-bg);
+            border-color: var(--card-border);
+            color: var(--text-light);
+        }
+        .input-style:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px var(--accent-blue);
+        }
+        .input-style::placeholder {
+            color: var(--text-muted) !important; 
+        }
+        
+        /* Scroll Indicator */
+        @keyframes bounce-cool {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-8px); }
+            60% { transform: translateY(-4px); }
+        }
+        .animate-bounce-cool {
+            animation: bounce-cool 2s infinite;
+        }
+        
+        /* Donasi Link Pulse */
+        @keyframes donasi-pulse {
+            0% { box-shadow: 0 0 10px rgba(255, 152, 0, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(255, 152, 0, 1), 0 0 40px rgba(255, 111, 0, 0.5); }
+            100% { box-shadow: 0 0 10px rgba(255, 152, 0, 0.5); }
+        }
+        .donasi-link {
+            animation: donasi-pulse 2s infinite ease-in-out;
+        }
+
+    </style>
+</head>
+<body>
+    
+    <!-- HEADER TETAP (FIXED) -->
+<header class="fixed-header"> 
+        <!-- Kontainer utama dengan semua elemen header -->
+        <div class="max-w-4xl mx-auto px-4 pt-4 pb-3"> 
+            
+
+<div class="flex justify-between items-center mb-4">
+                <div class="flex items-center text-3xl font-extrabold tracking-tight">
+                    
+
+<span class="logo-a mr-1 p-1 rounded-lg border-2 shadow-lg logo-a-color">A</span>
+                    <span class="text-[var(--text-light)]">Alfitech App</span>
+                </div>
+                
+
+<button id="settings-btn" onclick="openSettingsModal()" class="p-2 text-[var(--text-muted)] hover:text-[var(--accent-blue)] transition duration-150 rounded-full card-style">
+                    <i class="fas fa-cog text-xl"></i>
+                </button>
+            </div>
+            
+
+<div class="mb-2"> 
+
+<input type="text" id="search-input" placeholder="Cari Game atau Aplikasi..."
+                       class="w-full p-3 rounded-xl border focus:ring-[var(--accent-blue)] focus:border-[var(--accent-blue)] shadow-lg transition duration-300 input-style"
+                       oninput="handleSearch()">
+            </div>
+            
+            <!-- INDIKATOR SCROLL DI BAWAH SEARCH BOX -->
+            <div id="scroll-indicator" class="header-bottom-indicator flex flex-col items-center justify-center w-full py-2 text-[var(--accent-blue)] transition-opacity duration-500">
+                <span class="text-xs font-semibold mb-1">Gulir Ke Bawah Untuk Melihat Aplikasi</span>
+                <i class="fas fa-chevron-down text-xl animate-bounce-cool"></i>
+            </div>
+            <!-- AKHIR INDIKATOR SCROLL -->
+
+        </div>
+    </header>
+
+    <!-- AREA LANDING YANG IKUT SCROLL BERSAMA KONTEN -->
+    <div id="landing-area" class="w-full relative overflow-hidden mb-10">
+        <!-- Canvas sekarang berada di flow dokumen dan akan tergulir -->
+        <canvas id="bg-canvas" class="bg-canvas"></canvas>
+    </div>
+    <!-- AKHIR AREA LANDING -->
+
+    
+
+<div class="max-w-4xl mx-auto px-4">
+        
+
+<main id="content-list" class="content-view grid grid-cols-4 gap-2 p-1">
+            
+
+</main>
+        
+        
+
+<div id="content-donate-page" class="content-view hidden p-8 text-center mt-10 rounded-xl card-style">
+            <i class="fas fa-hand-holding-heart text-5xl mb-4" style="color: var(--accent-blue);"></i>
+            <h2 class="text-2xl font-bold mb-4 text-[var(--text-light)]">Ayo Dukung Kami Alfitech App!</h2>
+            <p class="text-lg text-[var(--text-light)] text-opacity-80 mb-8">
+                Dukungan Anda sangat berarti bagi kami untuk menjaga server tetap berjalan,
+                mengembangkan fitur-fitur baru, dan terus memberikan aplikasi terbaik.
+            </p>
+            
+            <p class="text-xl font-bold mb-6 text-[var(--text-light)]">
+                Silakan klik disini:
+            </p>
+            
+            <a href="https://trakteer.id/Alfitech_app" target="_blank" onclick="trackDonateClick()"
+               class="inline-block px-8 py-4 rounded-full text-xl font-extrabold shadow-2xl transition duration-300 transform hover:scale-105 donasi-link"
+               style="background: linear-gradient(45deg, #FF6F00, #FF9800); color: #FFF;">
+                <i class="fas fa-money-check-alt mr-2"></i> DONASI SEKARANG
+            </a>
+            
+        </div>
+    </div>
+
+    
+
+<footer class="fixed bottom-0 left-0 right-0 backdrop-blur-sm border-t z-10" style="background-color: var(--primary-bg); border-color: var(--card-border); box-shadow: 0 -4px 12px var(--shadow-color);">
+        <nav class="flex justify-around items-center h-16 max-w-lg mx-auto">
+            
+
+<button id="games-tab" onclick="switchTab('games')" class="flex flex-col items-center justify-center p-2 flex-1 text-[var(--accent-blue)] transition duration-200">
+                <i class="fas fa-gamepad text-xl"></i>
+                <span class="text-xs mt-1 font-semibold">Game</span>
+            </button>
+            
+
+<button id="apps-tab" onclick="switchTab('apps')" class="flex flex-col items-center justify-center p-2 flex-1 text-[var(--text-muted)] hover:text-[var(--accent-blue)] transition duration-200">
+                <i class="fas fa-mobile-alt text-xl"></i>
+                <span class="text-xs mt-1 font-semibold">Aplikasi</span>
+            </button>
+            
+
+<button id="donate-tab" onclick="switchTab('donate')" class="flex flex-col items-center justify-center p-2 flex-1 text-[var(--text-muted)] hover:text-[var(--accent-blue)] transition duration-200">
+                <i class="fas fa-heart text-xl"></i>
+                <span class="text-xs mt-1 font-semibold">Donasi</span>
+            </button>
+        </nav>
+    </footer>
+
+    
+
+<div id="detail-modal" class="hidden fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm bg-gray-900/90 transition-opacity duration-300">
+        <div class="modal-content max-w-xl mx-auto my-0 pt-0 pb-20 rounded-xl sm:rounded-b-none min-h-full">
+            <button onclick="closeDetails()" class="fixed top-2 left-2 sm:absolute sm:top-4 sm:left-4 p-2 rounded-full transition text-white z-50" style="background-color: rgba(0, 0, 0, 0.5); hover:background-color: rgba(0, 0, 0, 0.7);">
+                <i class="fas fa-arrow-left text-lg"></i>
+            </button>
+            
+            <div class="w-full aspect-video rounded-b-lg overflow-hidden mb-4 relative">
+                <img id="detail-screenshot" src="" onerror="this.onerror=null;this.src='https://placehold.co/600x338/E5E7EB/6B7280?text=PREVIEW+MEDIA';" alt="Screenshot Aplikasi" class="w-full h-full object-cover">
+            </div>
+
+            <div class="px-4 sm:px-6">
+                <div class="flex items-start mb-6">
+                    <div id="detail-icon" class="w-16 h-16 rounded-xl flex items-center justify-center text-3xl text-white shadow-xl flex-shrink-0" style="background-color: var(--accent-blue);">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <div class="ml-4 flex-grow">
+                        <h2 id="detail-name" class="text-xl font-bold truncate text-[var(--text-light)]">Nama Aplikasi</h2>
+                        <p id="detail-category-dev" class="text-xs text-[var(--text-muted)] mt-1">Kategori • Pengembang</p>
+                    </div>
+                    
+                    <a id="detail-download-btn-link" target="_blank" 
+                       class="py-2 px-4 rounded-full text-sm font-bold transition duration-200 hover:brightness-110 flex-shrink-0 ml-4 cursor-pointer flex items-center justify-center" 
+                       style="background-color: var(--accent-blue); color: var(--secondary-bg);">
+                        <i class="fas fa-download mr-1"></i> Unduh
+                    </a>
+                </div>
+
+                
+
+<div class="flex justify-between items-center text-center py-3 border-y mb-6" style="border-color: var(--card-border);">
+                    <div class="flex-1"><div class="text-base font-bold flex items-center justify-center text-[var(--text-light)]"><i class="fas fa-star text-yellow-400 text-sm mr-1"></i><span id="detail-rating">4.5</span></div><p class="text-[10px] text-[var(--text-muted)]">Ulasan</p></div>
+                    <div class="w-[1px] h-6" style="background-color: var(--card-border);"></div>
+                    <div class="flex-1"><div id="detail-size" class="text-base font-bold text-[var(--text-light)]">0 MB</div><p class="text-[10px] text-[var(--text-muted)]">Ukuran</p></div>
+                    <div class="w-[1px] h-6" style="background-color: var(--card-border);"></div>
+                    <div class="flex-1"><div id="detail-installs" class="text-base font-bold text-[var(--text-light)]">1M+</div><p class="text-[10px] text-[var(--text-muted)]">Pemasangan</p></div>
+                    <div class="w-[1px] h-6" style="background-color: var(--card-border);"></div>
+                    <div class="flex-1"><div id="detail-version" class="text-base font-bold text-[var(--text-light)]">1.0</div><p class="text-[10px] text-[var(--text-muted)]">Versi</p></div>
+                </div>
+
+                <h3 class="text-lg font-bold mb-3" style="color: var(--accent-blue);">Tentang Aplikasi Ini</h3>
+                <p id="detail-description" class="text-[var(--text-light)] text-opacity-80 leading-relaxed text-sm mb-6"></p>
+
+                <h3 class="text-lg font-bold mb-3" style="color: var(--accent-blue);">Fitur Utama</h3>
+                <ul id="detail-features" class="grid grid-cols-1 sm:grid-cols-2 gap-4 list-none p-0 text-sm mb-10">
+                    
+
+</ul>
+            </div>
+        </div>
+    </div>
+    
+    
+
+<div id="settings-modal" class="hidden fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm bg-gray-900/90 transition-opacity duration-300">
+        <div class="max-w-xl mx-auto my-4 p-4 sm:p-6 rounded-xl shadow-2xl modal-content">
+            <div class="flex justify-between items-start mb-4 border-b pb-4" style="border-color: var(--card-border);">
+                <h2 class="text-2xl font-bold text-[var(--text-light)]">Pengaturan & Analisis</h2>
+                <button onclick="closeSettings()" class="p-2 rounded-full hover:bg-[var(--primary-bg)] transition text-[var(--text-muted)] hover:text-[var(--accent-blue)]">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            
+
+<div id="settings-tabs" class="flex border-b mb-6" style="border-color: var(--card-border);">
+                <button id="tab-analytics" onclick="switchSettingsTab('analytics')" class="p-3 text-sm font-semibold border-b-2 border-transparent transition duration-200">Analisis Website</button>
+                <button id="tab-theme" onclick="switchSettingsTab('theme')" class="p-3 text-sm font-semibold border-b-2 border-transparent transition duration-200 text-[var(--text-muted)]">Tampilan</button>
+                <button id="tab-about" onclick="switchSettingsTab('about')" class="p-3 text-sm font-semibold border-b-2 border-transparent transition duration-200 text-[var(--text-muted)]">Tentang App</button>
+            </div>
+
+            
+
+<div id="content-analytics" class="tab-content space-y-6">
+                <h3 class="text-lg font-bold border-b pb-2" style="border-color: var(--card-border); color: var(--accent-blue);">Statistik Global Website</h3>
+                
+                <div class="grid grid-cols-3 gap-3 text-center">
+                    <div class="p-3 rounded-xl shadow-inner border" style="background-color: var(--primary-bg); border-color: var(--card-border);">
+                        <p id="metric-visits" class="text-2xl font-extrabold text-[var(--accent-blue)]">0</p>
+                        <p class="text-xs text-[var(--text-muted)]">Kunjungan</p>
+                    </div>
+                    <div class="p-3 rounded-xl shadow-inner border" style="background-color: var(--primary-bg); border-color: var(--card-border);">
+                        <p id="metric-downloads" class="text-2xl font-extrabold text-green-500">0</p>
+                        <p class="text-xs text-[var(--text-muted)]">Total Unduhan</p>
+                    </div>
+                    <div class="p-3 rounded-xl shadow-inner border" style="background-color: var(--primary-bg); border-color: var(--card-border);">
+                        <p id="metric-donate-clicks" class="text-2xl font-extrabold text-yellow-500">0</p>
+                        <p class="text-xs text-[var(--text-muted)]">Klik Donasi</p>
+                    </div>
+                </div>
+                
+                <p class="text-xs text-[var(--text-muted)] pt-2 text-center">Data diperbarui secara real-time dari Firestore.</p>
+            </div>
+            
+            
+
+<div id="content-theme" class="tab-content hidden space-y-6">
+                 <h3 class="text-lg font-bold border-b pb-2" style="border-color: var(--card-border); color: var(--accent-blue);">Pilihan Tampilan Animasi 3D</h3>
+                 
+                 <div class="flex justify-between items-center p-4 rounded-xl card-style border-none">
+                     <span class="text-base font-semibold text-[var(--text-light)]">Gunakan Warna Terang pada Animasi</span>
+                     <label class="relative inline-flex items-center cursor-pointer">
+                         <input type="checkbox" id="theme-toggle" class="sr-only peer" onchange="toggleTheme()">
+                         <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-[var(--accent-blue)]"></div>
+                     </label>
+                 </div>
+                 
+                 <p class="text-sm text-[var(--text-muted)] pt-2">Hanya warna objek 3D di latar belakang yang akan berubah. Seluruh tema website akan tetap dalam Mode Gelap.</p>
+            </div>
+            
+            
+
+<div id="content-about" class="tab-content hidden space-y-4">
+                 <h3 class="text-lg font-bold border-b pb-2" style="border-color: var(--card-border); color: var(--accent-blue);">Tentang Alfitech App</h3>
+                 <p class="text-sm text-[var(--text-light)]">
+                     Alfitech App adalah platform unduhan aplikasi dan game simulasi yang dirancang untuk demonstrasi. 
+                     Kami menampilkan berbagai konten fiktif dengan antarmuka yang modern, responsif, dan kaya fitur. 
+                     Aplikasi ini dibangun menggunakan Tailwind CSS, JavaScript murni, dan memanfaatkan Firebase Firestore 
+                     untuk analisis kunjungan dan unduhan real-time.
+                 </p>
+                 <p class="text-sm text-[var(--text-muted)] pt-2">Versi Aplikasi: 1.0.5 (Minor Refactor)</p>
+                 <p class="text-xs text-[var(--text-muted)]">Pengembang: Alfitech Development Team</p>
+            </div>
+        </div>
+    </div>
+    
+    
+
+<div id="message-box" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-full p-6 rounded-xl shadow-2xl z-[60] transition transform duration-300 border-2 text-center modal-content" style="border-color: var(--accent-blue);">
+        <h3 id="message-box-title" class="text-xl font-bold mb-3" style="color: var(--accent-blue);">Judul</h3>
+        <p id="message-box-message" class="mb-4 text-[var(--text-light)] text-opacity-80">Pesan.</p>
+        <button onclick="document.getElementById('message-box').classList.add('hidden')" class="px-4 py-2 rounded-lg font-semibold" style="background-color: var(--accent-blue); color: var(--primary-bg);">OK</button>
+    </div>
+
+
+    <script>
+        // Data statis/API akan disimpan di sini
+        let fetchedContentData = [];
+        let activeTab = 'games';
+        const contentList = document.getElementById('content-list');
+        const searchInput = document.getElementById('search-input');
+        const detailModal = document.getElementById('detail-modal');
+        const settingsModal = document.getElementById('settings-modal');
+        const scrollIndicator = document.getElementById('scroll-indicator'); 
+        
+        // --- KONSTANTA API F-DROP BARU ---
+        // Menggunakan URL hipotetis sesuai permintaan Anda
+        const F_DROP_API_URL = 'https://files.alfitech.com/api/files'; 
+
+        // --- FIREBASE GLOBALS (Hanya untuk Analytics) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        
+        let app;
+        let db;
+        let auth;
+        
+        // Konstanta Koleksi Firestore (HANYA untuk ANALITIK)
+        const ANALYTICS_COLLECTION = 'global_metrics';
+        const ANALYTICS_DOC_ID = 'website_analytics'; 
+        
+        // --- UTILITIES ---
+
+        function showMessageBox(title, message) {
+            const box = document.getElementById('message-box');
+            document.getElementById('message-box-title').textContent = title;
+            document.getElementById('message-box-message').textContent = message;
+            box.classList.remove('hidden');
+        }
+        
+        // --- FIREBASE & ANALYTICS LOGIC (TIDAK BERUBAH) ---
+        
+        function getGlobalAnalyticsDocRef() {
+            // Path: /artifacts/{appId}/public/data/global_metrics/website_analytics
+            if (!db) return null;
+            return Firebase.doc(db, 'artifacts', appId, 'public', 'data', ANALYTICS_COLLECTION, ANALYTICS_DOC_ID);
+        }
+
+        async function ensureAnalyticsDocumentExists() {
+            const docRef = getGlobalAnalyticsDocRef();
+            if (!docRef) return;
+            try {
+                const docSnap = await Firebase.getDoc(docRef);
+                if (!docSnap.exists()) {
+                    console.log("Creating new global analytics document...");
+                    await Firebase.setDoc(docRef, {
+                        visits: 0,
+                        downloads: 0,
+                        donate_clicks: 0, 
+                        last_updated: Firebase.serverTimestamp()
+                    });
+                }
+            } catch (e) {
+                console.error("Error ensuring analytics document exists:", e);
+            }
+        }
+
+        async function trackGlobalMetric(metric) {
+            const docRef = getGlobalAnalyticsDocRef();
+            if (!docRef) return;
+            try {
+                await Firebase.updateDoc(docRef, {
+                    [metric]: Firebase.increment(1)
+                });
+            } catch (e) {
+                console.error(`Error tracking ${metric}:`, e);
+            }
+        }
+
+        function trackWebsiteVisit() {
+            trackGlobalMetric('visits');
+        }
+
+        function trackAppDownload(appName) {
+            trackGlobalMetric('downloads');
+
+            // Close modal after mock download
+            closeDetails();
+            // Show download success message
+            showMessageBox(`Sukses mengunduh ${appName}!`, `Simulasi unduhan berhasil. Statistik global bertambah.`);
+        }
+        
+        function trackDonateClick() {
+            trackGlobalMetric('donate_clicks');
+        }
+
+        function setupAnalyticsListener() {
+            const docRef = getGlobalAnalyticsDocRef();
+            if (!docRef) return;
+            
+            Firebase.onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    updateAnalyticsUI(docSnap.data());
+                } else {
+                    updateAnalyticsUI({ visits: 0, downloads: 0, donate_clicks: 0 });
+                }
+            }, (error) => {
+                console.error("Error setting up analytics listener:", error);
+            });
+        }
+        
+        // --- LOGIC INTEGRASI API F-DROP BARU ---
+
+        async function fetchContentFromExternalFDropAPI() {
+            showSkeletonLoader();
+            console.log(`Mencoba mengambil data dari API F-Drop: ${F_DROP_API_URL}`);
+            
+            // Simulasi data yang akan didapat dari F-Drop API (untuk demonstrasi)
+            const mockApiData = [
+                // Item Game (Simulasi file.url dari F-Drop)
+                { id: '1', name: 'Cosmic Racer X', type: 'games', category: 'Balapan', developer: 'Alfitech Games', rating: '4.8', size: '150 MB', installs: '200K+', version: '2.1.0', description: 'Game balapan futuristik dengan grafis 3D memukau.', features: ['Mode Karir', 'Multiplayer Online', 'Kustomisasi Kendaraan'], screenshot_url: 'https://placehold.co/600x338/22C55E/FFFFFF?text=Cosmic+Racer+Preview', icon: 'fas fa-rocket', downloadUrl: 'https://files.alfitech.com/download/cosmic_racer_x.apk' },
+                { id: '2', name: 'Eco Farm Simulator', type: 'games', category: 'Simulasi', developer: 'GreenDev', rating: '4.3', size: '85 MB', installs: '1M+', version: '1.5.2', description: 'Simulasi bertani yang realistis dan ramah lingkungan.', features: ['Siklus Musim', 'Perdagangan', 'Eksplorasi'], screenshot_url: 'https://placehold.co/600x338/F97316/FFFFFF?text=Eco+Farm+Preview', icon: 'fas fa-seedling', downloadUrl: 'https://files.alfitech.com/download/eco_farm.apk' },
+                
+                // Item Aplikasi (Simulasi file.url dari F-Drop)
+                { id: '3', name: 'A-Notes Pro', type: 'apps', category: 'Produktivitas', developer: 'Alfitech Apps', rating: '4.7', size: '12 MB', installs: '500K+', version: '3.0.0', description: 'Aplikasi catatan super cepat dengan sinkronisasi cloud.', features: ['Sinkronisasi Cloud', 'Mode Gelap', 'Enkripsi Data'], screenshot_url: 'https://placehold.co/600x338/00BCD4/0A0F1D?text=A-Notes+Preview', icon: 'fas fa-clipboard-list', downloadUrl: 'https://files.alfitech.com/download/anotes_pro.apk' },
+                { id: '4', name: 'A-Wallet', type: 'apps', category: 'Keuangan', developer: 'Alfitech Apps', rating: '4.9', size: '20 MB', installs: '100K+', version: '1.2.5', description: 'Pengelola keuangan pribadi yang aman dan intuitif.', features: ['Pelacakan Anggaran', 'Laporan Grafis', 'Keamanan Biometrik'], screenshot_url: 'https://placehold.co/600x338/EF4444/FFFFFF?text=A-Wallet+Preview', icon: 'fas fa-wallet', downloadUrl: 'https://files.alfitech.com/download/awallet.apk' },
+                { id: '5', name: 'Geo Puzzle', type: 'games', category: 'Edukasi', developer: 'EduPlay', rating: '4.1', size: '60 MB', installs: '50K+', version: '1.0.0', description: 'Game teka-teki untuk belajar geografi dan ibukota dunia.', features: ['Ratusan Level', 'Mode Ujian', 'Papan Peringkat'], screenshot_url: 'https://placehold.co/600x338/8B5CF6/FFFFFF?text=Geo+Puzzle+Preview', icon: 'fas fa-globe-asia', downloadUrl: 'https://files.alfitech.com/download/geo_puzzle.apk' },
+            ];
+
+            try {
+                // --- PANGGILAN FETCH YANG SEBENARNYA (Simulasi) ---
+                // Di sini Anda akan menggunakan fetch() ke API F-Drop Anda
+                
+                // NOTE: Karena ini berjalan di lingkungan Canvas, fetch ke URL eksternal 
+                // akan gagal. Kami akan langsung menggunakan mockApiData.
+                
+                /*
+                const response = await fetch(F_DROP_API_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                        // Tambahkan header CORS atau otorisasi jika diperlukan
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                */
+                
+                // --- MENGGUNAKAN DATA SIMULASI ---
+                // Dalam aplikasi nyata, 'data' akan menjadi respons.json()
+                const data = mockApiData; 
+
+                // Proses dan Map data dari API ke struktur yang dibutuhkan oleh UI
+                // Ini memastikan field seperti type, icon, downloadUrl (file.url dari API) sudah benar.
+                fetchedContentData = data.map(item => ({
+                    id: item.id.toString(),
+                    name: item.name,
+                    type: item.type || 'apps', // Default jika API tidak menyediakan
+                    category: item.category || 'Lainnya',
+                    developer: item.developer || 'Pengembang API',
+                    rating: item.rating || 'N/A',
+                    size: item.size || '0 MB',
+                    installs: item.installs || '1K+',
+                    version: item.version || '1.0',
+                    description: item.description || 'Diperoleh dari API F-Drop.',
+                    features: Array.isArray(item.features) ? item.features : ['Data real-time'],
+                    screenshot_url: item.screenshot_url || 'https://placehold.co/600x338/E5E7EB/6B7280?text=F-DROP+FILE',
+                    icon: item.icon || (item.type === 'games' ? 'fas fa-dice' : 'fas fa-box'),
+                    downloadUrl: item.downloadUrl // PENTING: Tautan download dari API
+                }));
+                
+                console.log(`Sukses memuat ${fetchedContentData.length} item dari API F-Drop.`);
+                
+            } catch (error) {
+                console.error("Gagal memuat data dari F-Drop API:", error);
+                
+                // --- PENANGANAN ERROR Sesuai Permintaan ---
+                contentList.innerHTML = `<div class="col-span-4 p-8 text-center text-red-400 rounded-xl mt-4 card-style">
+                                            <p class="mb-2"><i class="fas fa-exclamation-triangle"></i></p>
+                                            <p>Gagal memuat data dari F-Drop (API).</p>
+                                            <p class="text-xs text-red-300 mt-2">(${error.message || 'Kesalahan jaringan/CORS'})</p>
+                                        </div>`;
+                
+                // Kosongkan data agar tidak merender data lama
+                fetchedContentData = []; 
+            } finally {
+                // Sembunyikan loader dan render (jika sukses)
+                renderContent();
+                hideSkeletonLoader();
+            }
+        }
+        
+        // --- TEMA LOGIC (Hanya untuk Animasi) ---
+
+        function toggleTheme() {
+            const isChecked = document.getElementById('theme-toggle').checked;
+            const newTheme = isChecked ? 'light' : 'dark';
+            
+            localStorage.setItem('animation-theme', newTheme); 
+            
+            updateThreeJSColor(newTheme);
+        }
+        
+        function checkThemePreference() {
+            const savedTheme = localStorage.getItem('animation-theme') || 'dark'; 
+            
+            const toggle = document.getElementById('theme-toggle');
+            if (toggle) {
+                toggle.checked = (savedTheme === 'light');
+            }
+            
+            updateThreeJSColor(savedTheme);
+        }
+        
+        // --- LOADER / SKELETON LOGIC ---
+        function showSkeletonLoader() {
+             contentList.innerHTML = Array(8).fill(0).map(() => `
+                 <div class="p-1 rounded-lg flex flex-col items-center text-center card-style skeleton-pulse">
+                     <div class="w-9 h-9 rounded-lg mb-1 bg-gray-700"></div>
+                     <div class="h-3 w-3/4 bg-gray-700 rounded mb-1"></div>
+                     <div class="h-2 w-1/2 bg-gray-700 rounded"></div>
+                 </div>
+             `).join('');
+        }
+        
+        function hideSkeletonLoader() {
+            // Skeleton loader disembunyikan secara implisit ketika renderContent dipanggil
+        }
+        // --- END LOADER / SKELETON LOGIC ---
+
+
+        // --- UI & TABS LOGIC ---
+        
+        function openSettingsModal(tab = 'analytics') {
+            settingsModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            switchSettingsTab(tab);
+            checkThemePreference();
+        }
+
+        function closeSettings() {
+            settingsModal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function switchSettingsTab(tabId) {
+            document.querySelectorAll('#settings-modal .tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            document.getElementById(`content-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('#settings-modal button[id^="tab-"]').forEach(btn => {
+                btn.style.borderColor = 'transparent';
+                btn.classList.add('text-[var(--text-muted)]');
+                btn.classList.remove('text-[var(--text-light)]');
+            });
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            if (activeBtn) {
+                 activeBtn.style.borderColor = 'var(--accent-blue)';
+                 activeBtn.classList.remove('text-[var(--text-muted)]');
+                 activeBtn.classList.add('text-[var(--text-light)]');
+            }
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            
+            // Update Nav Bar visual state
+            document.querySelectorAll('footer nav button').forEach(btn => {
+                btn.classList.remove('text-[var(--accent-blue)]');
+                btn.classList.add('text-[var(--text-muted)]');
+            });
+            document.getElementById(`${tab}-tab`).classList.remove('text-[var(--text-muted)]');
+            document.getElementById(`${tab}-tab`).classList.add('text-[var(--accent-blue)]');
+
+            // Handle Content Visibility
+            document.querySelectorAll('.content-view').forEach(view => view.classList.add('hidden'));
+
+            if (tab === 'games' || tab === 'apps') {
+                document.getElementById('content-list').classList.remove('hidden');
+                
+                // Logic untuk Indikator Scroll
+                if (window.scrollY > 10) { 
+                     scrollIndicator.classList.add('opacity-0', 'pointer-events-none'); 
+                     scrollIndicator.classList.remove('flex'); 
+                } else {
+                     scrollIndicator.classList.remove('opacity-0', 'pointer-events-none'); 
+                     scrollIndicator.classList.add('flex'); 
+                }
+                
+                // Hanya tampilkan loader jika data belum ada, jika sudah ada langsung render
+                if (fetchedContentData.length === 0) {
+                    showSkeletonLoader();
+                    // Jika data kosong, panggil lagi API (atau tunggu hasil API yang sudah dipanggil)
+                    // Tidak perlu panggil lagi, cukup tunggu hasil dari fetchContentFromExternalFDropAPI()
+                } else {
+                    renderContent();
+                }
+            } else if (tab === 'donate') {
+                document.getElementById('content-donate-page').classList.remove('hidden');
+                scrollIndicator.classList.add('opacity-0', 'pointer-events-none'); 
+                scrollIndicator.classList.remove('flex'); 
+            }
+        }
+
+        function createCard(item) {
+            const card = document.createElement('div');
+            card.className = `p-1 rounded-lg transition transform hover:scale-[1.05] duration-300 cursor-pointer flex flex-col items-center text-center group card-style`;
+            card.onclick = () => showDetails(item.id);
+            
+            const iconClass = item.icon || 'fas fa-question'; 
+
+            const iconHtml = `<div class="w-9 h-9 rounded-lg flex items-center justify-center mb-1 text-white text-base shadow-md group-hover:shadow-xl transition duration-300" style="background-color: var(--accent-blue);">
+                                  <i class="${iconClass}"></i>
+                              </div>`;
+
+            card.innerHTML = `
+                ${iconHtml}
+                <h3 class="text-[10px] font-bold truncate w-full px-1 text-[var(--text-light)]">${item.name || 'Nama Item'}</h3>
+                <div class="flex items-center text-[8px] text-yellow-400 mt-[1px]">
+                    <i class="fas fa-star text-[7px] mr-0.5"></i>
+                    <span>${item.rating || 'N/A'}</span>
+                </div>
+            `;
+            return card;
+        }
+
+        function showDetails(id) {
+            // Cari data di fetchedContentData
+            const item = fetchedContentData.find(d => d.id === id);
+            if (!item) return;
+
+            document.getElementById('detail-name').textContent = item.name || 'Nama Aplikasi';
+            document.getElementById('detail-category-dev').textContent = `${item.category || 'Kategori'} • ${item.developer || 'Pengembang'}`;
+            document.getElementById('detail-rating').textContent = item.rating || 'N/A';
+            document.getElementById('detail-size').textContent = item.size || '0 MB';
+            document.getElementById('detail-installs').textContent = item.installs || '0';
+            document.getElementById('detail-version').textContent = item.version || '1.0';
+            document.getElementById('detail-description').textContent = item.description || 'Deskripsi tidak tersedia.';
+            
+            const screenshotUrl = item.screenshot_url || 'https://placehold.co/600x338/E5E7EB/6B7280?text=PREVIEW+MEDIA';
+            document.getElementById('detail-screenshot').src = screenshotUrl; 
+
+            document.getElementById('detail-icon').innerHTML = `<i class="${item.icon || 'fas fa-mobile-alt'}"></i>`;
+            
+            const downloadLink = document.getElementById('detail-download-btn-link');
+            // Mengatur tautan download langsung dari data API
+            downloadLink.href = item.downloadUrl || '#'; 
+            downloadLink.onclick = () => trackAppDownload(item.name); 
+
+            const featuresList = document.getElementById('detail-features');
+            const features = Array.isArray(item.features) ? item.features : [];
+
+            featuresList.innerHTML = features.map(feature => 
+                `<li class="flex items-center space-x-2">
+                    <i class="fas fa-check-circle text-sm" style="color: var(--accent-blue);"></i>
+                    <span class="text-[var(--text-light)] text-opacity-80">${feature}</span>
+                </li>`
+            ).join('');
+
+            detailModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; 
+            detailModal.scrollTop = 0;
+        }
+
+        function closeDetails() {
+            detailModal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function renderContent() {
+            const query = searchInput.value.toLowerCase();
+            
+            // Filter data dari API F-Drop berdasarkan tab aktif ('games' atau 'apps') dan query pencarian
+            const filteredData = fetchedContentData.filter(item =>
+                item.type === activeTab &&
+                (item.name && item.name.toLowerCase().includes(query) || 
+                 item.category && item.category.toLowerCase().includes(query))
+            );
+
+            contentList.innerHTML = '';
+            
+            if (filteredData.length === 0) {
+                const message = fetchedContentData.length === 0 && query === '' 
+                    ? `Tidak ada konten yang ditemukan dari F-Drop API saat ini.`
+                    : `Tidak ada hasil ditemukan untuk "${query}" di kategori ${activeTab === 'games' ? 'Game' : 'Aplikasi'}.`;
+
+                contentList.innerHTML = `<div class="col-span-4 p-8 text-center text-[var(--text-muted)] rounded-xl mt-4 card-style">
+                                            <p class="mb-2"><i class="fas fa-box-open"></i></p>
+                                            <p>${message}</p>
+                                        </div>`;
+            } else {
+                filteredData.forEach(item => {
+                    contentList.appendChild(createCard(item));
+                });
+            }
+        }
+
+        function handleSearch() {
+            if (activeTab === 'games' || activeTab === 'apps') {
+                 renderContent();
+            }
+        }
+
+        // --- THREE.JS 3D Background Logic ---
+        let scene, camera, renderer, object;
+
+        function initThreeJS() {
+            const container = document.getElementById('bg-canvas');
+            const parent = container.parentElement;
+
+            scene = new THREE.Scene();
+            
+            const width = parent.clientWidth;
+            const height = parent.clientHeight;
+            
+            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            camera.position.z = 5;
+            
+            renderer = new THREE.WebGLRenderer({ canvas: container, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            const geometry = new THREE.DodecahedronGeometry(2, 0);
+            
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x00BCD4, 
+                flatShading: true, 
+                wireframe: true, 
+                shininess: 50
+            });
+            
+            object = new THREE.Mesh(geometry, material);
+            scene.add(object);
+            
+            const ambientLight = new THREE.AmbientLight(0x404040, 5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(1, 1, 1).normalize();
+            scene.add(directionalLight);
+        }
+
+        function updateThreeJSColor(theme) {
+            if (object && object.material) {
+                const color = theme === 'light' ? 0x007BFF : 0x00BCD4; 
+                object.material.color.setHex(color);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (object) {
+                object.rotation.x += 0.005;
+                object.rotation.y += 0.002;
+            }
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('bg-canvas');
+            const parent = container.parentElement;
+            if (!parent) return;
+
+            const width = parent.clientWidth;
+            const height = parent.clientHeight;
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+        window.addEventListener('resize', onWindowResize, false);
+
+
+        // --- Inisialisasi Aplikasi ---
+
+        window.onload = function() {
+            if (typeof Firebase !== 'undefined') {
+                initializeFirebase();
+            } else {
+                console.error("Firebase library failed to load.");
+            }
+
+            try {
+                initThreeJS();
+                animate();
+            } catch (e) {
+                console.error("Three.js gagal diinisialisasi.", e);
+                document.getElementById('bg-canvas').style.display = 'none';
+            }
+            
+            showSkeletonLoader();
+            
+            // Render konten awal (Games)
+            switchTab('games');
+            
+             // Listener untuk menyembunyikan scroll indicator
+            window.addEventListener('scroll', () => {
+                if (activeTab === 'games' || activeTab === 'apps') {
+                    if (window.scrollY > 10) { 
+                        scrollIndicator.classList.add('opacity-0', 'pointer-events-none');
+                        scrollIndicator.classList.remove('flex'); 
+                    } else {
+                        scrollIndicator.classList.remove('opacity-0', 'pointer-events-none');
+                        scrollIndicator.classList.add('flex'); 
+                    }
+                }
+            });
+        };
+        
+        async function initializeFirebase() {
+            if (!firebaseConfig || typeof Firebase === 'undefined') {
+                console.error("Firebase library or configuration is missing.");
+                // Langsung coba ambil data dari API F-Drop jika Firebase gagal
+                await fetchContentFromExternalFDropAPI(); 
+                return;
+            }
+
+            try {
+                app = Firebase.initializeApp(firebaseConfig);
+                db = Firebase.getFirestore(app);
+                auth = Firebase.getAuth(app);
+                
+                Firebase.setLogLevel('Debug');
+
+                // Autentikasi
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (initialAuthToken) {
+                    await Firebase.signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await Firebase.signInAnonymously(auth);
+                }
+                
+                // Inisialisasi Listeners (Analitik saja)
+                await ensureAnalyticsDocumentExists();
+                trackWebsiteVisit();
+                setupAnalyticsListener();
+                
+                // --- PANGGILAN API F-DROP BARU UNTUK KONTEN ---
+                await fetchContentFromExternalFDropAPI(); 
+                
+                // Cek preferensi tema animasi
+                checkThemePreference();
+
+            } catch (e) {
+                console.error("Error initializing Firebase/F-Drop:", e);
+                // Tetap coba ambil data dari API F-Drop jika Firebase Analytics gagal
+                await fetchContentFromExternalFDropAPI(); 
+            }
+        }
+
+    </script>
+</body>
+</html>
+
